@@ -10,14 +10,14 @@ def build_dashboard(panels: list[tuple[str, AnalyticPanel]], **kwargs) -> str:
 <html>
 <head>
   <meta charset="utf-8">
-  <title>IRS Risk Dashboard</title>
+  <title>Risk Dashboard</title>
   <style>
     body {{ font-family: sans-serif; padding: 20px; }}
     section {{ margin-bottom: 40px; }}
   </style>
 </head>
 <body>
-  <h1>IRS Risk Dashboard</h1>
+  <h1>Risk Dashboard</h1>
   {sections}
 </body>
 </html>"""

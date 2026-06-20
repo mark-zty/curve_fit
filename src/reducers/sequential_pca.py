@@ -1,7 +1,7 @@
 import numpy as np
 
 from .base import DimensionReducer, FactorResult
-from ..tenor_graph import TenorGraph, TENOR_YEARS
+from ..tenor_graph import TenorGraph
 
 
 class SequentialPCAReducer(DimensionReducer):
