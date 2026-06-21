@@ -33,6 +33,20 @@ def _options(items: list[str], selected: str) -> str:
     )
 
 
+def _validate_curve(curve: str) -> None:
+    structure = load_tenor_structure(INPUTS_DIR / curve / "tenor_structure.json")
+    tg = TenorGraph(structure)
+    is_valid, errors = tg.validate()
+    if is_valid:
+        print(f"✓ {curve}: structure is valid")
+        print(tg.visualize())
+        tg.plot(save_path=INPUTS_DIR / curve / "tenor_structure.png")
+    else:
+        print(f"X {curve}: errors found")
+        for error in errors:
+            print(f"  - {error}")
+
+
 @app.route("/")
 def index():
     curves     = _curves()
@@ -77,4 +91,6 @@ def index():
 
 
 if __name__ == "__main__":
+    for curve in _curves():
+        _validate_curve(curve)
     app.run(debug=True)

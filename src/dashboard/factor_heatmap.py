@@ -1,3 +1,5 @@
+import colorsys
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -5,14 +7,16 @@ from .base import AnalyticPanel
 from ..reducers.base import FactorResult
 from ..tenor_graph import TenorGraph
 
-# Diagonal layer blocks are outlined dark-to-light purple, layer 0 darkest.
-_PURPLE_DARK = (75, 0, 130)
-_PURPLE_LIGHT = (221, 160, 221)
+# Diagonal layer blocks are outlined dark-to-light purple (same hue), layer 0 darkest.
+_PURPLE_HUE = 280 / 360
+_LIGHTNESS_DARK = 0.20
+_LIGHTNESS_LIGHT = 0.80
 
 
 def _purple_shade(frac: float) -> str:
-    r, g, b = (round(d + frac * (light - d)) for d, light in zip(_PURPLE_DARK, _PURPLE_LIGHT))
-    return f"rgb({r},{g},{b})"
+    lightness = _LIGHTNESS_DARK + frac * (_LIGHTNESS_LIGHT - _LIGHTNESS_DARK)
+    r, g, b = colorsys.hls_to_rgb(_PURPLE_HUE, lightness, 1.0)
+    return f"rgb({round(r * 255)},{round(g * 255)},{round(b * 255)})"
 
 
 class FactorHeatmap(AnalyticPanel):

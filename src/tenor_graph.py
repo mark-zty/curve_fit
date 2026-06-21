@@ -1,4 +1,8 @@
 import re
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 
 def tenor_to_years(tenor: str) -> float:
@@ -12,7 +16,82 @@ def tenor_to_years(tenor: str) -> float:
 class TenorGraph:
     def __init__(self, structure: dict):
         self._s = structure
-        self._layers = self._infer_layers()
+        self.graph = self._build_graph()
+        self._layers: dict[str, int] | None = None
+
+    def _build_graph(self) -> nx.DiGraph:
+        graph = nx.DiGraph()
+        graph.add_nodes_from(self._s)
+        for tenor, info in self._s.items():
+            for p in info["predictors"]:
+                graph.add_edge(p, tenor)
+        return graph
+
+    def _get_missing_predictors(self) -> list[str]:
+        return [
+            f"{tenor!r} references missing predictor {p!r}"
+            for tenor, info in self._s.items()
+            for p in info["predictors"]
+            if p not in self._s
+        ]
+
+    def validate(self) -> tuple[bool, list[str]]:
+        errors = []
+
+        missing = self._get_missing_predictors()
+        if missing:
+            errors.append("Some predictors reference non-existent nodes:")
+            errors.extend(f"  - {m}" for m in missing)
+
+        if not nx.is_directed_acyclic_graph(self.graph):
+            errors.append("Graph contains cycles - not a valid DAG")
+            try:
+                cycle = nx.find_cycle(self.graph)
+                cycle_str = ' -> '.join([u for u, _ in cycle] + [cycle[0][0]])
+                errors.append(f"  Cycle detected: {cycle_str}")
+            except nx.NetworkXNoCycle:
+                pass
+
+        if not nx.is_weakly_connected(self.graph):
+            errors.append("Graph is not weakly connected")
+            components = list(nx.weakly_connected_components(self.graph))
+            errors.append(f"  Found {len(components)} disconnected components:")
+            for i, comp in enumerate(components, 1):
+                errors.append(f"    Component {i}: {sorted(comp)}")
+
+        self_loops = list(nx.nodes_with_selfloops(self.graph))
+        if self_loops:
+            errors.append(f"Self-loops detected: {self_loops}")
+
+        return not errors, errors
+
+    def visualize(self) -> str:
+        lines = []
+        for layer in self.all_layers:
+            lines.append(f"Layer {layer}:")
+            for t in self.tenors_in_layer(layer):
+                preds = self._s[t]["predictors"]
+                suffix = f" <- {', '.join(preds)}" if preds else ""
+                lines.append(f"  {t}{suffix}")
+        return "\n".join(lines)
+
+    def plot(self, save_path: str | Path | None = None) -> None:
+        pos = {
+            t: (layer, -i)
+            for layer in self.all_layers
+            for i, t in enumerate(self.tenors_in_layer(layer))
+        }
+        plt.figure(figsize=(10, 6))
+        nx.draw(
+            self.graph, pos, with_labels=True,
+            node_color="#dda0dd", node_size=1200, font_size=8, arrows=True,
+        )
+        plt.title("Tenor predictor structure")
+        if save_path:
+            plt.savefig(save_path, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
 
     def _infer_layers(self) -> dict[str, int]:
         cache: dict[str, int] = {}
@@ -26,14 +105,20 @@ class TenorGraph:
         return cache
 
     def layer_of(self, tenor: str) -> int:
+        if self._layers is None:
+            self._layers = self._infer_layers()
         return self._layers[tenor]
 
     def tenors_in_layer(self, layer: int) -> list[str]:
+        if self._layers is None:
+            self._layers = self._infer_layers()
         tenors = [t for t, l in self._layers.items() if l == layer]
         return sorted(tenors, key=tenor_to_years)
 
     @property
     def all_layers(self) -> list[int]:
+        if self._layers is None:
+            self._layers = self._infer_layers()
         return sorted(set(self._layers.values()))
 
     @property
