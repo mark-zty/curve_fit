@@ -7,6 +7,7 @@ from src.tenor_graph import TenorGraph
 from src.estimators import REGISTRY as EST_REGISTRY, get_estimator
 from src.reducers import REGISTRY as RED_REGISTRY, get_reducer
 from src.dashboard.factor_heatmap import FactorHeatmap
+from src.dashboard.tenor_structure import TenorStructurePlot
 
 INPUTS_DIR = Path("inputs")
 app = Flask(__name__)
@@ -17,13 +18,20 @@ def _curves() -> list[str]:
 
 
 def _run(curve: str, estimator: str, reducer: str):
-    base = INPUTS_DIR / curve
+    """Returns (result, tg, errors). result is None when the tenor structure or its data coverage is invalid."""
+    base      = INPUTS_DIR / curve
     structure = load_tenor_structure(base / "tenor_structure.json")
-    rates     = load_rates(base / "curve_data.csv")
     tg        = TenorGraph(structure)
-    C         = get_estimator(estimator).fit(rates)
-    result    = get_reducer(reducer).fit(C, list(rates.columns), tg)
-    return result, tg
+    rates     = load_rates(base / "curve_data.csv")
+
+    _, errors = tg.validate()
+    errors += tg.validate_tenor_coverage(list(rates.columns))
+    if errors:
+        return None, tg, errors
+
+    C      = get_estimator(estimator).fit(rates)
+    result = get_reducer(reducer).fit(C, list(rates.columns), tg)
+    return result, tg, errors
 
 
 def _options(items: list[str], selected: str) -> str:
@@ -33,18 +41,12 @@ def _options(items: list[str], selected: str) -> str:
     )
 
 
-def _validate_curve(curve: str) -> None:
-    structure = load_tenor_structure(INPUTS_DIR / curve / "tenor_structure.json")
-    tg = TenorGraph(structure)
-    is_valid, errors = tg.validate()
-    if is_valid:
-        print(f"✓ {curve}: structure is valid")
-        print(tg.visualize())
-        tg.plot(save_path=INPUTS_DIR / curve / "tenor_structure.png")
-    else:
-        print(f"X {curve}: errors found")
-        for error in errors:
-            print(f"  - {error}")
+def _error_panel(curve: str, errors: list[str]) -> str:
+    items = "".join(f"<li>{e}</li>" for e in errors)
+    return f"""<div class="error">
+    <h3>✗ Invalid tenor structure for {curve}</h3>
+    <ul>{items}</ul>
+  </div>"""
 
 
 @app.route("/")
@@ -57,8 +59,13 @@ def index():
     estimator = request.args.get("estimator", estimators[0])
     reducer   = request.args.get("reducer",   reducers[0])
 
-    result, tg = _run(curve, estimator, reducer)
-    content    = FactorHeatmap().render(result=result, tenor_graph=tg)
+    result, tg, errors = _run(curve, estimator, reducer)
+
+    if result is None:
+        content = _error_panel(curve, errors)
+    else:
+        content = f"""<section><h2>Tenor Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
+  <section><h2>Factor Loadings</h2>{FactorHeatmap().render(result=result, tenor_graph=tg)}</section>"""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -70,6 +77,7 @@ def index():
     .controls {{ display: flex; gap: 24px; margin-bottom: 30px; align-items: flex-end; }}
     .controls label {{ display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; color: #555; }}
     select {{ padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }}
+    .error {{ background: #fdecea; border: 1px solid #f5c2c7; border-radius: 6px; padding: 16px 20px; color: #842029; }}
   </style>
 </head>
 <body>
@@ -85,12 +93,10 @@ def index():
       <select name="reducer" onchange="this.form.submit()">{_options(reducers, reducer)}</select>
     </label>
   </form>
-  <section><h2>Factor Loadings</h2>{content}</section>
+  {content}
 </body>
 </html>"""
 
 
 if __name__ == "__main__":
-    for curve in _curves():
-        _validate_curve(curve)
     app.run(debug=True)

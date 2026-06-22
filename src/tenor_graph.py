@@ -1,7 +1,5 @@
 import re
-from pathlib import Path
 
-import matplotlib.pyplot as plt
 import networkx as nx
 
 
@@ -65,6 +63,21 @@ class TenorGraph:
 
         return not errors, errors
 
+    def validate_tenor_coverage(self, data_tenors: list[str]) -> list[str]:
+        structure_tenors = set(self.all_tenors)
+        data_tenors = set(data_tenors)
+        errors = []
+
+        missing = sorted(data_tenors - structure_tenors)
+        if missing:
+            errors.append(f"Tenor structure is missing tenor(s) present in data: {missing}")
+
+        redundant = sorted(structure_tenors - data_tenors)
+        if redundant:
+            errors.append(f"Tenor structure has redundant tenor(s) not present in data: {redundant}")
+
+        return errors
+
     def visualize(self) -> str:
         lines = []
         for layer in self.all_layers:
@@ -74,24 +87,6 @@ class TenorGraph:
                 suffix = f" <- {', '.join(preds)}" if preds else ""
                 lines.append(f"  {t}{suffix}")
         return "\n".join(lines)
-
-    def plot(self, save_path: str | Path | None = None) -> None:
-        pos = {
-            t: (layer, -i)
-            for layer in self.all_layers
-            for i, t in enumerate(self.tenors_in_layer(layer))
-        }
-        plt.figure(figsize=(10, 6))
-        nx.draw(
-            self.graph, pos, with_labels=True,
-            node_color="#dda0dd", node_size=1200, font_size=8, arrows=True,
-        )
-        plt.title("Tenor predictor structure")
-        if save_path:
-            plt.savefig(save_path, bbox_inches="tight")
-            plt.close()
-        else:
-            plt.show()
 
     def _infer_layers(self) -> dict[str, int]:
         cache: dict[str, int] = {}
@@ -108,6 +103,9 @@ class TenorGraph:
         if self._layers is None:
             self._layers = self._infer_layers()
         return self._layers[tenor]
+
+    def predictors_of(self, tenor: str) -> list[str]:
+        return list(self._s[tenor]["predictors"])
 
     def tenors_in_layer(self, layer: int) -> list[str]:
         if self._layers is None:

@@ -1,22 +1,9 @@
-import colorsys
-
 import numpy as np
 import plotly.graph_objects as go
 
-from .base import AnalyticPanel
+from .base import AnalyticPanel, layer_color
 from ..reducers.base import FactorResult
 from ..tenor_graph import TenorGraph
-
-# Diagonal layer blocks are outlined dark-to-light purple (same hue), layer 0 darkest.
-_PURPLE_HUE = 280 / 360
-_LIGHTNESS_DARK = 0.20
-_LIGHTNESS_LIGHT = 0.80
-
-
-def _purple_shade(frac: float) -> str:
-    lightness = _LIGHTNESS_DARK + frac * (_LIGHTNESS_LIGHT - _LIGHTNESS_DARK)
-    r, g, b = colorsys.hls_to_rgb(_PURPLE_HUE, lightness, 1.0)
-    return f"rgb({round(r * 255)},{round(g * 255)},{round(b * 255)})"
 
 
 class FactorHeatmap(AnalyticPanel):
@@ -31,7 +18,7 @@ class FactorHeatmap(AnalyticPanel):
 
         fig = go.Figure(go.Heatmap(
             z=L,
-            x=order,
+            x=[f"<b>{t}</b>" for t in order],
             y=order,
             colorscale="RdBu",
             zmid=0,
@@ -45,12 +32,12 @@ class FactorHeatmap(AnalyticPanel):
             fig.add_shape(
                 type="rect",
                 x0=start, x1=end, y0=start, y1=end,
-                line=dict(color=_purple_shade(frac), width=2),
+                line=dict(color=layer_color(frac), width=2),
                 fillcolor="rgba(0,0,0,0)",
             )
         fig.update_layout(
             title="Factor loadings by tenor",
-            xaxis_title="Factor (anchor tenor)",
+            xaxis_title="<b>Factor (anchor tenor)</b>",
             yaxis_title="Tenor",
             yaxis=dict(autorange="reversed"),
             height=600,

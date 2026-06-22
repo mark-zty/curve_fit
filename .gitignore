@@ -2,6 +2,7 @@
 *.json
 *.html
 *.md
+*.png
 
 __pycache__/
 *.pyc
