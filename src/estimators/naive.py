@@ -5,6 +5,5 @@ from .base import CovarianceEstimator
 
 
 class NaiveEstimator(CovarianceEstimator):
-    def fit(self, rates: pd.DataFrame) -> np.ndarray:
-        diffs = rates.diff().dropna()
-        return np.cov(diffs.values.T)
+    def fit(self, series: pd.DataFrame) -> np.ndarray:
+        return np.cov(series.values.T)

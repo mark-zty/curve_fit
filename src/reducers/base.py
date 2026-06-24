@@ -11,7 +11,6 @@ class FactorResult:
     loadings: np.ndarray           # (n_tenors, n_factors)
     factor_labels: list[str]       # anchor tenor for each factor column
     tenors: list[str]              # tenor label for each row
-    explained_variance: np.ndarray # per-factor variance (pre-basis-change)
 
 
 class DimensionReducer(ABC):

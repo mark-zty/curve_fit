@@ -5,9 +5,27 @@ from .base import AnalyticPanel, layer_color
 from ..reducers.base import FactorResult
 from ..tenor_graph import TenorGraph
 
+_INTRO = (
+    "Each row is a tenor and each column an anchor tenor."
+)
+_DESCRIPTIONS = {
+    "sequential_pca": (
+        "Uses the tenor liquidity <b>layers</b>."
+    ),
+    "sequential_ols": (
+        "Uses the tenor liquidity <b>layers</b>."
+    ),
+    "local_pca": (
+        "Uses the tenor liquidity <b>graph</b>."
+    ),
+    "local_ols": (
+        "Uses the tenor liquidity <b>graph</b>."
+    ),
+}
+
 
 class FactorHeatmap(AnalyticPanel):
-    def render(self, result: FactorResult, tenor_graph: TenorGraph, **_) -> str:
+    def render(self, result: FactorResult, tenor_graph: TenorGraph, reducer: str = "", **_) -> str:
         # factor_labels are already ordered layer-then-maturity; reorder rows to match.
         order = result.factor_labels
         row_pos = {t: i for i, t in enumerate(result.tenors)}
@@ -24,6 +42,7 @@ class FactorHeatmap(AnalyticPanel):
             zmid=0,
             text=np.round(L, 2),
             texttemplate="%{text}",
+            hovertemplate="%{x}<br>%{y}<br>%{z:.5f}<extra></extra>",
             colorbar=dict(title="Loading"),
         ))
         for i, n in enumerate(layer_sizes):
@@ -35,11 +54,16 @@ class FactorHeatmap(AnalyticPanel):
                 line=dict(color=layer_color(frac), width=2),
                 fillcolor="rgba(0,0,0,0)",
             )
+        xtitle = "Factor (anchor tenor)" if reducer == "sequential_pca" else "Anchor Tenor"
         fig.update_layout(
-            title="Factor loadings by tenor",
-            xaxis_title="<b>Factor (anchor tenor)</b>",
+            xaxis_title=f"<b>{xtitle}</b>",
             yaxis_title="Tenor",
             yaxis=dict(autorange="reversed"),
             height=600,
         )
-        return fig.to_html(full_html=False, include_plotlyjs="cdn")
+        paras = [_INTRO, _DESCRIPTIONS.get(reducer, "")]
+        explanation = "".join(
+            f"<p style='max-width:760px;color:#555;line-height:1.5'>{p}</p>"
+            for p in paras if p
+        )
+        return explanation + fig.to_html(full_html=False, include_plotlyjs="cdn")

@@ -7,9 +7,11 @@ from src.tenor_graph import TenorGraph
 from src.estimators import REGISTRY as EST_REGISTRY, get_estimator
 from src.reducers import REGISTRY as RED_REGISTRY, get_reducer
 from src.dashboard.factor_heatmap import FactorHeatmap
+from src.dashboard.cascading import CascadingPanel
 from src.dashboard.tenor_structure import TenorStructurePlot
 
 INPUTS_DIR = Path("inputs")
+SERIES = ["Change", "Level"]
 app = Flask(__name__)
 
 
@@ -17,7 +19,7 @@ def _curves() -> list[str]:
     return sorted(p.name for p in INPUTS_DIR.iterdir() if p.is_dir())
 
 
-def _run(curve: str, estimator: str, reducer: str):
+def _run(curve: str, series: str, estimator: str, reducer: str):
     """Returns (result, tg, errors). result is None when the tenor structure or its data coverage is invalid."""
     base      = INPUTS_DIR / curve
     structure = load_tenor_structure(base / "tenor_structure.json")
@@ -29,7 +31,8 @@ def _run(curve: str, estimator: str, reducer: str):
     if errors:
         return None, tg, errors
 
-    C      = get_estimator(estimator).fit(rates)
+    data   = rates.diff().dropna() if series == "Change" else rates
+    C      = get_estimator(estimator).fit(data)
     result = get_reducer(reducer).fit(C, list(rates.columns), tg)
     return result, tg, errors
 
@@ -56,16 +59,18 @@ def index():
     reducers   = list(RED_REGISTRY)
 
     curve     = request.args.get("curve",     curves[0])
+    series    = request.args.get("series",    SERIES[0])
     estimator = request.args.get("estimator", estimators[0])
     reducer   = request.args.get("reducer",   reducers[0])
 
-    result, tg, errors = _run(curve, estimator, reducer)
+    result, tg, errors = _run(curve, series, estimator, reducer)
 
     if result is None:
         content = _error_panel(curve, errors)
     else:
-        content = f"""<section><h2>Tenor Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
-  <section><h2>Factor Loadings</h2>{FactorHeatmap().render(result=result, tenor_graph=tg)}</section>"""
+        content = f"""<section><h2>Tenor Liquidity Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
+  <section><h2>Loading Matrix</h2>{FactorHeatmap().render(result=result, tenor_graph=tg, reducer=reducer)}</section>
+  <section><h2>Cascading</h2>{CascadingPanel().render(result=result, tenor_graph=tg, reducer=reducer)}</section>"""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -86,6 +91,9 @@ def index():
     <label>Curve
       <select name="curve" onchange="this.form.submit()">{_options(curves, curve)}</select>
     </label>
+    <label>Series
+      <select name="series" onchange="this.form.submit()">{_options(SERIES, series)}</select>
+    </label>
     <label>Estimator
       <select name="estimator" onchange="this.form.submit()">{_options(estimators, estimator)}</select>
     </label>
@@ -99,4 +107,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5555, debug=True)

@@ -6,8 +6,8 @@ import pandas as pd
 
 class CovarianceEstimator(ABC):
     @abstractmethod
-    def fit(self, rates: pd.DataFrame) -> np.ndarray:
+    def fit(self, series: pd.DataFrame) -> np.ndarray:
         """
-        rates: wide DataFrame (Date × Tenor) of par rates.
-        Returns (n, n) covariance matrix of daily rate changes.
+        series: wide DataFrame (Date × Tenor) of par rate levels or daily changes.
+        Returns (n, n) covariance matrix.
         """
