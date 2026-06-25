@@ -54,7 +54,7 @@ class FactorHeatmap(AnalyticPanel):
                 line=dict(color=layer_color(frac), width=2),
                 fillcolor="rgba(0,0,0,0)",
             )
-        xtitle = "Factor (anchor tenor)" if reducer == "sequential_pca" else "Anchor Tenor"
+        xtitle = "Anchor Tenor"
         fig.update_layout(
             xaxis_title=f"<b>{xtitle}</b>",
             yaxis_title="Tenor",

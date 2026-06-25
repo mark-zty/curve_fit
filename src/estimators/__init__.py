@@ -1,7 +1,11 @@
 from .naive import NaiveEstimator
+from .ledoit_wolf import LedoitWolfEstimator
+from .oas import OASEstimator
 
 REGISTRY: dict[str, type] = {
-    "naive": NaiveEstimator,
+    "naïve": NaiveEstimator,
+    "ledoit_wolf": LedoitWolfEstimator,
+    "oas": OASEstimator,
 }
 
 

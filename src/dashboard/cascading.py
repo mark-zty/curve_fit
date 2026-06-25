@@ -8,16 +8,15 @@ from ..tenor_graph import TenorGraph
 _INTRO = (
     "Each illiquid tenor's risk is cascaded down the liquidity layers and attributed "
     "entirely to the first (most liquid) layer of anchor tenors. Each row is the "
-    "first-layer replication of that tenor — a hedge built from liquid instruments."
+    "first-layer replication of that tenor—a hedge built from liquid instruments."
 )
 _DESCRIPTIONS = {
     "sequential_pca": (
-        "The first-layer factor columns already express every tenor on the first layer."
+        ""
     ),
 }
 _DESCRIPTIONS_OTHER = (
-    "The loading matrix is raised to the power (number of layers − 1) to fold every "
-    "intermediate layer through to the first."
+    ""
 )
 
 
