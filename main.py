@@ -22,30 +22,32 @@ def _curves() -> list[str]:
 
 
 def _run(curve: str, transformation: str, estimator: str, reducer: str):
-    """Returns (result, tg, errors). result is None when inputs are missing or invalid."""
+    """Returns (result, tg, errors, warnings). result is None when inputs are missing
+    or invalid (errors); warnings are non-blocking and the analysis still runs."""
     base    = INPUTS_DIR / curve
     missing = [f for f in ("tenor_structure.json", "curve_data.csv") if not (base / f).exists()]
     if missing:
-        return None, None, [f"Missing required file: {curve}/{f}" for f in missing]
+        return None, None, [f"Missing required file: {curve}/{f}" for f in missing], []
 
     structure = load_tenor_structure(base / "tenor_structure.json")
     tg        = TenorGraph(structure)
     _, errors = tg.validate()
+    warnings  = []
     try:
         df = read_rates(base / "curve_data.csv")
-        errors += duplicate_quotes(df)
-        errors += incomplete_tenor_days(df)
-        errors += tg.validate_tenor_coverage(list(df["Tenor"].unique()))
+        errors   += duplicate_quotes(df)
+        warnings += incomplete_tenor_days(df)
+        errors   += tg.validate_tenor_coverage(list(df["Tenor"].unique()))
     except ValueError as e:
-        return None, tg, errors + [str(e)]
+        return None, tg, errors + [str(e)], warnings
     if errors:
-        return None, tg, errors
+        return None, tg, errors, warnings
 
     rates  = pivot_rates(df)
-    data   = rates.diff().dropna() if transformation == "change" else rates
+    data   = rates.diff().dropna() if transformation == "change" else rates.dropna()
     C      = get_estimator(estimator).fit(data)
     result = get_reducer(reducer).fit(C, list(rates.columns), tg)
-    return result, tg, errors
+    return result, tg, errors, warnings
 
 
 def _options(items: list[str], selected: str) -> str:
@@ -63,6 +65,14 @@ def _error_panel(curve: str, errors: list[str]) -> str:
   </div>"""
 
 
+def _warning_panel(curve: str, warnings: list[str]) -> str:
+    body = "<br>".join(w for w in warnings)
+    return f"""<div class="warning">
+    <h3>⚠ Warnings for {curve} (analysis still ran)</h3>
+    <pre>{body}</pre>
+  </div>"""
+
+
 @app.route("/")
 def index():
     curves     = _curves()
@@ -74,12 +84,14 @@ def index():
     estimator      = request.args.get("estimator",      estimators[0])
     reducer        = request.args.get("reducer",        reducers[0])
 
-    result, tg, errors = _run(curve, transformation, estimator, reducer)
+    result, tg, errors, warnings = _run(curve, transformation, estimator, reducer)
 
     if result is None:
         content = _error_panel(curve, errors)
     else:
-        content = f"""<section><h2>Tenor Liquidity Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
+        warning_panel = _warning_panel(curve, warnings) if warnings else ""
+        content = f"""{warning_panel}
+  <section><h2>Tenor Liquidity Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
   <section><h2>Loading Matrix</h2>{FactorHeatmap().render(result=result, tenor_graph=tg, reducer=reducer)}</section>
   <section><h2>Cascading Matrix</h2>{CascadingPanel().render(result=result, tenor_graph=tg, reducer=reducer)}</section>"""
 
@@ -94,6 +106,8 @@ def index():
     .controls label {{ display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; color: #555; }}
     select {{ padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }}
     .error {{ background: #fdecea; border: 1px solid #f5c2c7; border-radius: 6px; padding: 16px 20px; color: #842029; }}
+    .warning {{ background: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; padding: 16px 20px; color: #664d03; margin-bottom: 24px; }}
+    .warning pre {{ margin: 0; font-family: inherit; white-space: pre-wrap; }}
   </style>
 </head>
 <body>

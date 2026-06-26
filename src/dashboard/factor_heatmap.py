@@ -42,7 +42,7 @@ class FactorHeatmap(AnalyticPanel):
             zmid=0,
             text=np.round(L, 2),
             texttemplate="%{text}",
-            hovertemplate="%{x}<br>%{y}<br>%{z:.5f}<extra></extra>",
+            hovertemplate="anchor %{x}<br>%{y}<br>%{z:.5f}<extra></extra>",
             colorbar=dict(title="Loading"),
         ))
         for i, n in enumerate(layer_sizes):
