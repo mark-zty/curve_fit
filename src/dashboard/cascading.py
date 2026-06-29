@@ -2,21 +2,13 @@ import numpy as np
 import plotly.graph_objects as go
 
 from .base import AnalyticPanel, layer_color
+from ..reducers import get_reducer
 from ..reducers.base import FactorResult
 from ..tenor_graph import TenorGraph
 
 _INTRO = (
-    "Each illiquid tenor's risk is cascaded down the liquidity layers and attributed "
-    "entirely to the first (most liquid) layer of anchor tenors. Each row is the "
-    "first-layer replication of that tenor—a hedge built from liquid instruments."
-)
-_DESCRIPTIONS = {
-    "sequential_pca": (
-        ""
-    ),
-}
-_DESCRIPTIONS_OTHER = (
-    ""
+    "Each illiquid tenor's risk is attributed entirely to the first (most liquid) layer of anchor tenors. "
+    "Each row is the first-layer replication of that tenor—a hedge built from liquid instruments."
 )
 
 
@@ -35,10 +27,7 @@ class CascadingPanel(AnalyticPanel):
                     "liquidity layer — every tenor is already a driver, nothing to "
                     "cascade.</p>")
 
-        # sequential_pca's first-layer columns already carry every tenor's first-layer
-        # loading; the other reducers need M raised to (#layers - 1) to fold all
-        # intermediate layers through, leaving the first k columns as the only nonzeros.
-        cascaded = M if reducer == "sequential_pca" else np.linalg.matrix_power(M, len(layers) - 1)
+        cascaded = get_reducer(reducer).cascade(M, tenor_graph)
         Z = cascaded[k:, :k]
         cols, rows = order[:k], order[k:]
 
@@ -71,9 +60,5 @@ class CascadingPanel(AnalyticPanel):
             height=max(300, 36 * len(rows) + 160),
         )
 
-        desc = _DESCRIPTIONS.get(reducer, _DESCRIPTIONS_OTHER)
-        explanation = "".join(
-            f"<p style='max-width:760px;color:#555;line-height:1.5'>{p}</p>"
-            for p in (_INTRO, desc)
-        )
+        explanation = f"<p style='max-width:760px;color:#555;line-height:1.5'>{_INTRO}</p>"
         return explanation + fig.to_html(full_html=False, include_plotlyjs="cdn")

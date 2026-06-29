@@ -20,3 +20,11 @@ class DimensionReducer(ABC):
         C: (n, n) covariance matrix aligned with tenors.
         tenors: ordered tenor labels matching C's rows/cols.
         """
+
+    def cascade(self, loadings: np.ndarray, tenor_graph: TenorGraph) -> np.ndarray:
+        """Fold every illiquid tenor's risk down to the first layer, given the
+        layer-ordered loading matrix. The default treats loadings as a graded
+        transition and raises it to (#layers - 1) to route all intermediate layers
+        through; reducers whose loadings already carry the full first-layer
+        replication override this."""
+        return np.linalg.matrix_power(loadings, len(tenor_graph.all_layers) - 1)

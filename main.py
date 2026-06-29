@@ -57,6 +57,13 @@ def _options(items: list[str], selected: str) -> str:
     )
 
 
+def _section(title: str, body: str, open: bool = True) -> str:
+    return f"""<details class="section"{" open" if open else ""}>
+    <summary>{title}</summary>
+    {body}
+  </details>"""
+
+
 def _error_panel(curve: str, errors: list[str]) -> str:
     items = "".join(f"<li>{e}</li>" for e in errors)
     return f"""<div class="error">
@@ -68,7 +75,7 @@ def _error_panel(curve: str, errors: list[str]) -> str:
 def _warning_panel(curve: str, warnings: list[str]) -> str:
     body = "<br>".join(w for w in warnings)
     return f"""<div class="warning">
-    <h3>⚠ Warnings for {curve} (analysis still ran)</h3>
+    <h3>⚠ Warnings for {curve}</h3>
     <pre>{body}</pre>
   </div>"""
 
@@ -91,9 +98,9 @@ def index():
     else:
         warning_panel = _warning_panel(curve, warnings) if warnings else ""
         content = f"""{warning_panel}
-  <section><h2>Tenor Liquidity Structure</h2>{TenorStructurePlot().render(tenor_graph=tg)}</section>
-  <section><h2>Loading Matrix</h2>{FactorHeatmap().render(result=result, tenor_graph=tg, reducer=reducer)}</section>
-  <section><h2>Cascading Matrix</h2>{CascadingPanel().render(result=result, tenor_graph=tg, reducer=reducer)}</section>"""
+  {_section("Tenor Liquidity Structure", TenorStructurePlot().render(tenor_graph=tg), open=False)}
+  {_section("Loading Matrix", FactorHeatmap().render(result=result, tenor_graph=tg, reducer=reducer))}
+  {_section("Cascading Matrix", CascadingPanel().render(result=result, tenor_graph=tg, reducer=reducer))}"""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -102,6 +109,17 @@ def index():
   <title>Risk Dashboard</title>
   <style>
     body {{ font-family: sans-serif; padding: 20px; }}
+    details.section {{ margin-bottom: 40px; }}
+    details.section > summary {{
+      list-style: none; cursor: pointer; user-select: none;
+      font-size: 1.5em; font-weight: bold; display: flex; align-items: center; gap: 10px;
+    }}
+    details.section > summary::-webkit-details-marker {{ display: none; }}
+    details.section > summary::before {{
+      content: "⌃"; display: inline-block; transition: transform 0.2s; transform: rotate(180deg);
+      font-size: 0.8em; color: #888;
+    }}
+    details.section[open] > summary::before {{ transform: rotate(0deg); }}
     .controls {{ display: flex; gap: 24px; margin-bottom: 30px; align-items: flex-end; }}
     .controls label {{ display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; color: #555; }}
     select {{ padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }}

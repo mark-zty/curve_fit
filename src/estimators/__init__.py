@@ -2,12 +2,14 @@ from .naive import NaiveEstimator
 from .ledoit_wolf import LedoitWolfEstimator
 from .oas import OASEstimator
 from .newey_west import NeweyWestEstimator
+from .hjm_kernel import HJMKernelEstimator
 
 REGISTRY: dict[str, type] = {
     "naïve": NaiveEstimator,
     "ledoit_wolf": LedoitWolfEstimator,
     "oas": OASEstimator,
     "newey_west": NeweyWestEstimator,
+    "hjm_kernel": HJMKernelEstimator,
 }
 
 

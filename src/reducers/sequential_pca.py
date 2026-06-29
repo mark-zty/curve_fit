@@ -47,3 +47,7 @@ class SequentialPCAReducer(DimensionReducer):
             factor_labels=all_labels,
             tenors=tenors,
         )
+
+    def cascade(self, loadings: np.ndarray, tenor_graph: TenorGraph) -> np.ndarray:
+        # First-layer columns already hold every tenor's full first-layer loading.
+        return loadings

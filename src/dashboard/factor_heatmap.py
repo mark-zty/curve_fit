@@ -10,16 +10,16 @@ _INTRO = (
 )
 _DESCRIPTIONS = {
     "sequential_pca": (
-        "Uses the tenor liquidity <b>layers</b>."
+        "The chosen reducer uses the tenor liquidity <b>layers</b>."
     ),
     "sequential_ols": (
-        "Uses the tenor liquidity <b>layers</b>."
+        "The chosen reducer uses the tenor liquidity <b>layers</b>."
     ),
     "local_pca": (
-        "Uses the tenor liquidity <b>graph</b>."
+        "The chosen reducer uses the tenor liquidity <b>graph</b>."
     ),
     "local_ols": (
-        "Uses the tenor liquidity <b>graph</b>."
+        "The chosen reducer uses the tenor liquidity <b>graph</b>."
     ),
 }
 
