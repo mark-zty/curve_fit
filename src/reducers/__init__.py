@@ -11,7 +11,7 @@ REGISTRY: dict[str, type] = {
 }
 
 
-def get_reducer(name: str):
+def get_reducer(name: str, **kwargs):
     if name not in REGISTRY:
         raise KeyError(f"Unknown reducer '{name}'. Available: {list(REGISTRY)}")
-    return REGISTRY[name]()
+    return REGISTRY[name](**kwargs)

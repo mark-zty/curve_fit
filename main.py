@@ -6,6 +6,7 @@ from src.data_loader import (
     load_tenor_structure, read_rates, pivot_rates, duplicate_quotes, incomplete_tenor_days,
 )
 from src.tenor_graph import TenorGraph
+from src.params import Param
 from src.estimators import REGISTRY as EST_REGISTRY, get_estimator
 from src.reducers import REGISTRY as RED_REGISTRY, get_reducer
 from src.dashboard.factor_heatmap import FactorHeatmap
@@ -21,7 +22,8 @@ def _curves() -> list[str]:
     return sorted(p.name for p in INPUTS_DIR.iterdir() if p.is_dir())
 
 
-def _run(curve: str, transformation: str, estimator: str, reducer: str):
+def _run(curve: str, transformation: str, estimator: str, reducer: str,
+         est_params: dict, red_params: dict):
     """Returns (result, tg, errors, warnings). result is None when inputs are missing
     or invalid (errors); warnings are non-blocking and the analysis still runs."""
     base    = INPUTS_DIR / curve
@@ -45,8 +47,8 @@ def _run(curve: str, transformation: str, estimator: str, reducer: str):
 
     rates  = pivot_rates(df)
     data   = rates.diff().dropna() if transformation == "change" else rates.dropna()
-    C      = get_estimator(estimator).fit(data)
-    result = get_reducer(reducer).fit(C, list(rates.columns), tg)
+    C      = get_estimator(estimator, **est_params).fit(data)
+    result = get_reducer(reducer, **red_params).fit(C, list(rates.columns), tg)
     return result, tg, errors, warnings
 
 
@@ -55,6 +57,36 @@ def _options(items: list[str], selected: str) -> str:
         f'<option value="{v}"{"selected" if v == selected else ""}>{v}</option>'
         for v in items
     )
+
+
+def _plugin_params(cls, prefix: str, args) -> tuple[list[Param], dict]:
+    """Coerce a plugin's declared hyperparameters from the request args under `prefix`."""
+    specs  = getattr(cls, "PARAMS", [])
+    values = {p.name: p.coerce(args.get(f"{prefix}{p.name}")) for p in specs}
+    return specs, values
+
+
+def _param_field(p: Param, prefix: str, value) -> str:
+    field = f"{prefix}{p.name}"
+    if p.choices:
+        opts = _options([str(c) for c in p.choices], str(value))
+        control = f'<select name="{field}" onchange="this.form.submit()">{opts}</select>'
+    else:
+        rng = (f' min="{p.min}"' if p.min is not None else "") + \
+              (f' max="{p.max}"' if p.max is not None else "")
+        control = (f'<input type="number" name="{field}" value="{value}"{rng} '
+                   f'onchange="this.form.submit()">')
+    return f"<label>{p.label or p.name}{control}</label>"
+
+
+def _hyperparams(specs_values: list[tuple[list[Param], str, dict]]) -> str:
+    fields = "".join(
+        _param_field(p, prefix, values[p.name])
+        for specs, prefix, values in specs_values for p in specs
+    )
+    if not fields:
+        return ""
+    return _section("Hyperparameters", f'<div class="controls">{fields}</div>')
 
 
 def _section(title: str, body: str, open: bool = True) -> str:
@@ -91,7 +123,13 @@ def index():
     estimator      = request.args.get("estimator",      estimators[0])
     reducer        = request.args.get("reducer",        reducers[0])
 
-    result, tg, errors, warnings = _run(curve, transformation, estimator, reducer)
+    est_specs, est_params = _plugin_params(EST_REGISTRY[estimator], "est_", request.args)
+    red_specs, red_params = _plugin_params(RED_REGISTRY[reducer],   "red_", request.args)
+    hyperparams = _hyperparams([(est_specs, "est_", est_params),
+                                (red_specs, "red_", red_params)])
+
+    result, tg, errors, warnings = _run(curve, transformation, estimator, reducer,
+                                        est_params, red_params)
 
     if result is None:
         content = _error_panel(curve, errors)
@@ -122,7 +160,7 @@ def index():
     details.section[open] > summary::before {{ transform: rotate(0deg); }}
     .controls {{ display: flex; gap: 24px; margin-bottom: 30px; align-items: flex-end; }}
     .controls label {{ display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; color: #555; }}
-    select {{ padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }}
+    select, input[type=number] {{ padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }}
     .error {{ background: #fdecea; border: 1px solid #f5c2c7; border-radius: 6px; padding: 16px 20px; color: #842029; }}
     .warning {{ background: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; padding: 16px 20px; color: #664d03; margin-bottom: 24px; }}
     .warning pre {{ margin: 0; font-family: inherit; white-space: pre-wrap; }}
@@ -130,19 +168,22 @@ def index():
 </head>
 <body>
   <h1>Risk Dashboard</h1>
-  <form method="GET" class="controls">
-    <label>Curve
-      <select name="curve" onchange="this.form.submit()">{_options(curves, curve)}</select>
-    </label>
-    <label>Transformation
-      <select name="transformation" onchange="this.form.submit()">{_options(TRANSFORMATIONS, transformation)}</select>
-    </label>
-    <label>Estimator
-      <select name="estimator" onchange="this.form.submit()">{_options(estimators, estimator)}</select>
-    </label>
-    <label>Reducer
-      <select name="reducer" onchange="this.form.submit()">{_options(reducers, reducer)}</select>
-    </label>
+  <form method="GET">
+    <div class="controls">
+      <label>Curve
+        <select name="curve" onchange="this.form.submit()">{_options(curves, curve)}</select>
+      </label>
+      <label>Transformation
+        <select name="transformation" onchange="this.form.submit()">{_options(TRANSFORMATIONS, transformation)}</select>
+      </label>
+      <label>Estimator
+        <select name="estimator" onchange="this.form.submit()">{_options(estimators, estimator)}</select>
+      </label>
+      <label>Reducer
+        <select name="reducer" onchange="this.form.submit()">{_options(reducers, reducer)}</select>
+      </label>
+    </div>
+    {hyperparams}
   </form>
   {content}
 </body>

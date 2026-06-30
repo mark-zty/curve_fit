@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.optimize import least_squares
 
 from .base import CovarianceEstimator
+from ..params import Param
 from ..tenor_graph import tenor_to_years
 
 
@@ -24,7 +25,9 @@ class HJMKernelEstimator(CovarianceEstimator):
     1/√(Σ_aa·Σ_bb) to fit the correlation shape instead of the high-variance end.
     """
 
-    def __init__(self, k: int = 2, weighting: str = "uniform", n_restarts: int = 4):
+    PARAMS = [Param("k", int, default=3, min=1, max=6, label="factors (k)")]
+
+    def __init__(self, k: int = 3, weighting: str = "uniform", n_restarts: int = 4):
         self.k = k
         self.weighting = weighting
         self.n_restarts = n_restarts

@@ -13,7 +13,7 @@ REGISTRY: dict[str, type] = {
 }
 
 
-def get_estimator(name: str):
+def get_estimator(name: str, **kwargs):
     if name not in REGISTRY:
         raise KeyError(f"Unknown estimator '{name}'. Available: {list(REGISTRY)}")
-    return REGISTRY[name]()
+    return REGISTRY[name](**kwargs)
